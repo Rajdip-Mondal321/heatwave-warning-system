@@ -1,0 +1,22 @@
+{
+  "feature_columns": [
+    "latitude",
+    "longitude",
+    "month",
+    "temperature_c",
+    "relative_humidity_pct",
+    "wind_speed_ms",
+    "solar_radiation_kwh_m2",
+    "wbgt_c",
+    "heat_index_c",
+    "wbgt_lag1",
+    "wbgt_roll3",
+    "day_of_year_sin",
+    "day_of_year_cos",
+    "district"
+  ],
+  "categorical_columns": [
+    "district"
+  ],
+  "target": "wbgt_next_day"
+}

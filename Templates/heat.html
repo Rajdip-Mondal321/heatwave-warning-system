@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heat Stress Warning System</title>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #1f2937;
+            min-height: 100vh;
+            transition: color 0.6s ease;
+        }
+
+        .scene {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+            background: radial-gradient(ellipse at 50% 0%, #0b0b2b 0%, #05050f 55%, #030308 100%);
+        }
+
+        .glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.55;
+            animation: floatGlow 22s ease-in-out infinite alternate;
+        }
+
+        .glow.g1 {
+            width: 46vmax; height: 46vmax; left: -14vmax; top: -12vmax;
+            background: radial-gradient(circle, #7c3aed 0%, rgba(124, 58, 237, 0) 70%);
+        }
+
+        .glow.g2 {
+            width: 42vmax; height: 42vmax; right: -12vmax; top: 8vh;
+            background: radial-gradient(circle, #2563eb 0%, rgba(37, 99, 235, 0) 70%);
+            animation-delay: -8s;
+        }
+
+        .glow.g3 {
+            width: 40vmax; height: 30vmax; left: 25vw; bottom: -16vmax;
+            background: radial-gradient(circle, #c026d3 0%, rgba(192, 38, 211, 0) 70%);
+            opacity: 0.4;
+            animation-delay: -14s;
+        }
+
+        @keyframes floatGlow {
+            from { transform: translate3d(0, 0, 0) scale(1); }
+            to   { transform: translate3d(3vw, 4vh, 0) scale(1.12); }
+        }
+
+        .grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(148, 163, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 255, 0.05) 1px, transparent 1px);
+            background-size: 56px 56px;
+            -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 0%, transparent 70%);
+            mask-image: radial-gradient(ellipse at 50% 40%, #000 0%, transparent 70%);
+        }
+
+        .orbit {
+            position: absolute;
+            left: 50%;
+            top: 42%;
+            border-radius: 50%;
+            border: 1px solid rgba(129, 140, 248, 0.38);
+            box-shadow: 0 0 24px rgba(99, 102, 241, 0.35), inset 0 0 30px rgba(99, 102, 241, 0.18);
+        }
+
+        .orbit.o1 {
+            width: 90vmax; height: 34vmax;
+            margin: -17vmax 0 0 -45vmax;
+            transform: rotate(-18deg);
+        }
+
+        .orbit.o2 {
+            width: 70vmax; height: 26vmax;
+            margin: -13vmax 0 0 -35vmax;
+            transform: rotate(14deg);
+            border-color: rgba(192, 132, 252, 0.32);
+            box-shadow: 0 0 24px rgba(168, 85, 247, 0.3), inset 0 0 30px rgba(168, 85, 247, 0.15);
+        }
+
+        .orbit.o3 {
+            width: 110vmax; height: 46vmax;
+            margin: -23vmax 0 0 -55vmax;
+            transform: rotate(-6deg);
+            border-color: rgba(56, 189, 248, 0.2);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.18);
+        }
+
+        .stars {
+            position: absolute;
+            inset: 0;
+            animation: twinkle 7s ease-in-out infinite;
+        }
+
+        .stars i {
+            position: absolute;
+            border-radius: 50%;
+            background: #c7d2fe;
+            box-shadow: 0 0 6px 1px rgba(165, 180, 252, 0.7);
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .vignette {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 45%, rgba(2, 2, 8, 0.75) 100%);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .glow, .stars { animation: none; }
+        }
+
+        /* ===================================================== */
+
+        header {
+            background: linear-gradient(135deg, rgba(2, 132, 199, 0.92), rgba(22, 163, 74, 0.92));
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+        }
+
+        header h1 { font-size: 32px; margin-bottom: 8px; }
+
+        .logout-btn {
+            display: none;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 0;
+        }
+
+        .logout-btn:hover { background: rgba(255, 255, 255, 0.35); }
+
+        .container {
+            width: 92%;
+            max-width: 1100px;
+            margin: 30px auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card,
+        .weather-card,
+        .login-card {
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(14px) saturate(140%);
+            -webkit-backdrop-filter: blur(14px) saturate(140%);
+            border: 1px solid rgba(255, 255, 255, 0.55);
+        }
+
+        .card {
+            padding: 22px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+        }
+
+        .card h2 { color: #0284c7; margin-bottom: 15px; }
+
+        .location-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .location-box {
+            background: rgba(240, 249, 255, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .location-box span {
+            display: block;
+            color: #6b7280;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .weather-card {
+            padding: 22px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+        }
+
+        .weather-icon { font-size: 35px; margin-bottom: 10px; }
+
+        .weather-card h3 { color: #6b7280; font-size: 14px; margin-bottom: 10px; }
+
+        .weather-value { color: #0284c7; font-size: 27px; font-weight: bold; }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-top: 7px;
+        }
+
+        button {
+            padding: 13px 20px;
+            margin-top: 15px;
+            border: none;
+            border-radius: 8px;
+            background: #0284c7;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #0369a1; }
+
+        .search-box { display: flex; gap: 10px; }
+        .search-box input { flex: 1; }
+        .search-box button { margin-top: 7px; }
+
+        #secondWeather { display: none; margin-top: 25px; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+        }
+
+        .form-group label { font-weight: bold; }
+
+        .result { display: none; }
+
+        .risk-box {
+            text-align: center;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+        }
+
+        .risk-percentage { font-size: 50px; font-weight: bold; margin: 10px; }
+
+        .risk-low      { background: #dcfce7; color: #166534; }
+        .risk-moderate { background: #fef9c3; color: #854d0e; }
+        .risk-high     { background: #fed7aa; color: #9a3412; }
+        .risk-extreme  { background: #fee2e2; color: #991b1b; }
+
+        .error { color: red; margin-top: 10px; }
+
+        .safety-box {
+            background: rgba(248, 250, 252, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border-left: 5px solid #7c3aed;
+        }
+
+        .safety-box h3 { color: #7c3aed; margin-bottom: 12px; }
+        .safety-box li { margin: 10px 0; line-height: 1.5; }
+        .safety-note { margin-top: 15px; font-weight: bold; }
+
+        .hospital-box {
+            display: none;
+            background: rgba(255, 241, 242, 0.92);
+            border-left: 6px solid #dc2626;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            text-align: center;
+            color: #1f2937;
+        }
+
+        .hospital-box h3 { color: #dc2626; margin-bottom: 10px; }
+        .hospital-box p { margin-bottom: 10px; line-height: 1.5; }
+
+        .hospital-button { background: #dc2626; width: 100%; }
+        .hospital-button:hover { background: #991b1b; }
+
+        footer {
+            text-align: center;
+            padding: 25px;
+            color: #ffffff;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (max-width: 600px) {
+            .search-box { display: block; }
+            .search-box button { width: 100%; }
+        }
+
+        #loginScreen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 380px;
+            padding: 36px 30px;
+            border-radius: 18px;
+            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-card .login-icon { font-size: 40px; text-align: center; margin-bottom: 8px; }
+
+        .login-card h1 {
+            text-align: center;
+            color: #0284c7;
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .login-card p.subtitle {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .login-card label { font-weight: bold; font-size: 14px; }
+        .login-card .form-group { margin-bottom: 16px; }
+
+        .login-card button {
+            width: 100%;
+            background: linear-gradient(135deg, #0284c7, #16a34a);
+        }
+
+        .login-toggle {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .login-toggle a { color: #0284c7; cursor: pointer; text-decoration: underline; }
+
+        .forgot-link {
+            text-align: right;
+            font-size: 13px;
+            margin-top: -8px;
+            margin-bottom: 10px;
+        }
+
+        .forgot-link a { color: #0284c7; cursor: pointer; text-decoration: underline; }
+
+        .login-success {
+            color: #166534;
+            background: #dcfce7;
+            font-size: 13px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-top: 4px;
+            min-height: 18px;
+            display: none;
+        }
+
+        .login-error {
+            color: #dc2626;
+            font-size: 14px;
+            margin-top: 4px;
+            min-height: 18px;
+        }
+
+        .login-hint {
+            background: rgba(240, 249, 255, 0.85);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 18px;
+            line-height: 1.5;
+        }
+
+        #appWrapper { display: none; position: relative; z-index: 1; }
+        #forgotPasswordScreen { display: none; }
+
+        /* ---------------- DARK GLASS THEME ---------------- */
+        body.dark-mode { color: #e5e7f5; }
+
+        body.dark-mode header {
+            background: rgba(10, 10, 32, 0.55);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+            box-shadow: 0 8px 32px rgba(76, 29, 149, 0.25);
+        }
+
+        body.dark-mode header h1 {
+            background: linear-gradient(90deg, #ffffff, #c4b5fd 60%, #f0abfc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        body.dark-mode header p { color: #a5b4fc; }
+
+        body.dark-mode .card,
+        body.dark-mode .weather-card,
+        body.dark-mode .login-card {
+            background: rgba(14, 16, 40, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.28);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+            color: #e5e7f5;
+        }
+
+        body.dark-mode .location-box,
+        body.dark-mode .login-hint {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(148, 163, 255, 0.15);
+            color: #cbd5e1;
+        }
+
+        body.dark-mode .weather-card h3,
+        body.dark-mode .location-box span,
+        body.dark-mode .login-card p.subtitle,
+        body.dark-mode .login-toggle { color: #94a3b8; }
+
+        body.dark-mode .weather-value { color: #a5b4fc; }
+
+        body.dark-mode .card h2,
+        body.dark-mode .login-card h1 { color: #d8b4fe; }
+
+        body.dark-mode button,
+        body.dark-mode .login-card button {
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            box-shadow: 0 6px 22px rgba(168, 85, 247, 0.35);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+        }
+
+        body.dark-mode button:hover,
+        body.dark-mode .login-card button:hover {
+            background: linear-gradient(135deg, #b66bff, #f472b6);
+            box-shadow: 0 8px 28px rgba(192, 38, 211, 0.5);
+            opacity: 1;
+        }
+
+        body.dark-mode .logout-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(196, 181, 253, 0.5);
+            box-shadow: none;
+        }
+
+        body.dark-mode .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.18);
+            box-shadow: none;
+        }
+
+        body.dark-mode .hospital-button {
+            background: linear-gradient(135deg, #ef4444, #be123c);
+            box-shadow: 0 6px 22px rgba(239, 68, 68, 0.4);
+        }
+
+        body.dark-mode .hospital-button:hover {
+            background: linear-gradient(135deg, #f87171, #e11d48);
+        }
+
+        body.dark-mode .safety-box {
+            background: rgba(14, 16, 40, 0.6);
+            border-left-color: #a855f7;
+        }
+
+        body.dark-mode .safety-box h3 { color: #d8b4fe; }
+
+        body.dark-mode input,
+        body.dark-mode select {
+            background: rgba(255, 255, 255, 0.05);
+            color: #e5e7f5;
+            border-color: rgba(148, 163, 255, 0.25);
+        }
+
+        body.dark-mode input:focus,
+        body.dark-mode select:focus {
+            outline: none;
+            border-color: #a855f7;
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.3);
+        }
+
+        body.dark-mode select option { background: #0f1029; color: #e5e7f5; }
+
+        body.dark-mode .login-toggle a,
+        body.dark-mode .forgot-link a { color: #c084fc; }
+
+        body.dark-mode .error,
+        body.dark-mode .login-error { color: #fca5a5; }
+
+        body.dark-mode .login-success {
+            background: rgba(20, 83, 45, 0.6);
+            color: #bbf7d0;
+        }
+
+        body.dark-mode footer { color: #94a3b8; }
+
+        body.dark-mode .risk-low {
+            background: rgba(20, 83, 45, 0.75);
+            color: #bbf7d0;
+            border: 1px solid rgba(74, 222, 128, 0.35);
+        }
+
+        body.dark-mode .risk-moderate {
+            background: rgba(113, 63, 18, 0.75);
+            color: #fef08a;
+            border: 1px solid rgba(250, 204, 21, 0.35);
+        }
+
+        body.dark-mode .risk-high {
+            background: rgba(124, 45, 18, 0.75);
+            color: #fed7aa;
+            border: 1px solid rgba(251, 146, 60, 0.35);
+        }
+
+        body.dark-mode .risk-extreme {
+            background: rgba(127, 29, 29, 0.75);
+            color: #fecaca;
+            border: 1px solid rgba(248, 113, 113, 0.4);
+        }
+
+        body.dark-mode .hospital-box {
+            background: rgba(69, 10, 10, 0.7);
+            color: #fecaca;
+        }
+    </style>
+</head>
+
+<body class="dark-mode">
+    <!-- BACKGROUND SCENE -->
+    <div class="scene" aria-hidden="true">
+        <div class="glow g1"></div>
+        <div class="glow g2"></div>
+        <div class="glow g3"></div>
+        <div class="grid"></div>
+        <div class="orbit o3"></div>
+        <div class="orbit o1"></div>
+        <div class="orbit o2"></div>
+        <div class="stars" id="stars"></div>
+        <div class="vignette"></div>
+    </div>
+
+    <div id="loginScreen">
+        <div class="login-card" id="loginCardBox">
+            <div class="login-icon">🔥</div>
+            <h1>Heat Stress Warning System</h1>
+            <p class="subtitle" id="authSubtitle">Sign in to check your heat risk</p>
+
+            <form id="loginForm" onsubmit="return handleLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUsername" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" autocomplete="current-password" required>
+                </div>
+                <div class="form-group" id="confirmPasswordGroup" style="display:none;">
+                    <label>Confirm Password</label>
+                    <input type="password" id="loginConfirmPassword" autocomplete="new-password">
+                </div>
+
+                <p class="forgot-link" id="forgotLinkRow">
+                    <a onclick="showForgotPassword()">Forgot password?</a>
+                </p>
+
+                <p class="login-error" id="loginError"></p>
+                <button type="submit" id="authSubmitBtn">Sign In</button>
+            </form>
+
+            <p class="login-toggle">
+                <span id="toggleText">Don't have an account?</span>
+                <a onclick="toggleAuthMode()" id="toggleLink">Create one</a>
+            </p>
+
+            <p class="login-hint">
+                Accounts are stored only in this browser (no server). This is a
+                lightweight demo login, not intended for sensitive data.
+            </p>
+        </div>
+
+        <!-- FORGOT PASSWORD CARD -->
+        <div class="login-card" id="forgotPasswordScreen">
+            <div class="login-icon">🔑</div>
+            <h1>Reset Password</h1>
+            <p class="subtitle" id="forgotSubtitle">Enter your username to reset your password</p>
+
+            <form id="forgotStepOneForm" onsubmit="return handleForgotStepOne(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="forgotUsername" autocomplete="username" required>
+                </div>
+                <p class="login-error" id="forgotError"></p>
+                <button type="submit">Continue</button>
+            </form>
+
+            <form id="forgotStepTwoForm" style="display:none;" onsubmit="return handleForgotStepTwo(event)">
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="newPassword" autocomplete="new-password" required>
+                </div>
+                <div class="form-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" autocomplete="new-password" required>
+                </div>
+                <p class="login-error" id="forgotErrorStepTwo"></p>
+                <button type="submit">Reset Password</button>
+            </form>
+
+            <p class="login-success" id="forgotSuccess"></p>
+
+            <p class="login-toggle">
+                <a onclick="backToLogin()">← Back to sign in</a>
+            </p>
+
+            <p class="login-hint">
+                Since accounts only exist in this browser, there's no email to send
+                a reset link to. Confirming your username here lets you set a new
+                password directly.
+            </p>
+        </div>
+    </div>
+
+    <div id="appWrapper">
+        <header>
+            <button class="logout-btn" id="logoutBtn" onclick="handleLogout()">Log Out</button>
+            <h1>🔥 Heat Stress Warning System</h1>
+            <p>Real-Time Weather & Heat Risk Assessment</p>
+        </header>
+
+        <div class="container">
+            <div class="card">
+                <h2>📍 Current Location</h2>
+                <div class="location-info">
+                    <div class="location-box">
+                        <span>City</span>
+                        <strong id="city">Detecting...</strong>
+                    </div>
+                    <div class="location-box">
+                        <span>Latitude</span>
+                        <strong id="latitude">--</strong>
+                    </div>
+                    <div class="location-box">
+                        <span>Longitude</span>
+                        <strong id="longitude">--</strong>
+                    </div>
+                    <div class="location-box">
+                        <span>Status</span>
+                        <strong id="locationStatus">Detecting...</strong>
+                    </div>
+                </div>
+                <button onclick="getLocation()">Detect My Location Again</button>
+                <p class="error" id="errorMessage"></p>
+            </div>
+
+            <!-- WEATHER -->
+            <div class="weather-grid">
+                <div class="weather-card">
+                    <div class="weather-icon">🌡️</div>
+                    <h3>Temperature</h3>
+                    <div class="weather-value" id="temperature">-- °C</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon">💧</div>
+                    <h3>Humidity</h3>
+                    <div class="weather-value" id="humidity">-- %</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon">💨</div>
+                    <h3>Wind Speed</h3>
+                    <div class="weather-value" id="windSpeed">-- km/h</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon">🥵</div>
+                    <h3>Apparent Temperature</h3>
+                    <div class="weather-value" id="apparentTemperature">-- °C</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🌍 Check Another Location</h2>
+                <div class="search-box">
+                    <input type="text" id="secondLocationInput" placeholder="Enter city name, e.g. Mumbai">
+                    <button onclick="getSecondLocation()">🔍 Search</button>
+                </div>
+                <p class="error" id="secondLocationError"></p>
+                <div id="secondWeather">
+                    <h2>📍 Weather in <span id="secondCity">--</span></h2>
+                    <div class="weather-grid">
+                        <div class="weather-card">
+                            <div class="weather-icon">🌡️</div>
+                            <h3>Temperature</h3>
+                            <div class="weather-value" id="secondTemperature">-- °C</div>
+                        </div>
+                        <div class="weather-card">
+                            <div class="weather-icon">💧</div>
+                            <h3>Humidity</h3>
+                            <div class="weather-value" id="secondHumidity">-- %</div>
+                        </div>
+                        <div class="weather-card">
+                            <div class="weather-icon">💨</div>
+                            <h3>Wind Speed</h3>
+                            <div class="weather-value" id="secondWindSpeed">-- km/h</div>
+                        </div>
+                        <div class="weather-card">
+                            <div class="weather-icon">🥵</div>
+                            <h3>Apparent Temperature</h3>
+                            <div class="weather-value" id="secondApparentTemperature">-- °C</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>👤 Personal Heat Risk Information</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Age Group</label>
+                        <select id="age">
+                            <option value="Adult">Adult</option>
+                            <option value="Child">Child</option>
+                            <option value="Elderly">Elderly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Activity</label>
+                        <select id="activity">
+                            <option value="Rest">Rest</option>
+                            <option value="Light">Light</option>
+                            <option value="Moderate">Moderate</option>
+                            <option value="Heavy">Heavy</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Clothing</label>
+                        <select id="clothing">
+                            <option value="Light">Light</option>
+                            <option value="Normal">Normal</option>
+                            <option value="Heavy">Heavy</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Outdoor Exposure Hours</label>
+                        <input type="number" id="hours" value="1" min="0" max="24">
+                    </div>
+                </div>
+                <button onclick="calculateRisk()">🔥 Calculate Heat Stress Risk</button>
+            </div>
+
+            <div class="result" id="result">
+                <div id="riskBox" class="risk-box">
+                    <h2>🔥 HEAT STRESS ASSESSMENT</h2>
+                    <div class="risk-percentage" id="riskPercentage">0%</div>
+                    <h2 id="riskLevel">LOW RISK</h2>
+                    <p id="riskMessage"></p>
+                </div>
+
+                <div class="card safety-box">
+                    <h3>🛡️ Safety Guidance</h3>
+                    <ol id="safetyGuidance">
+                        <li>Drink water regularly.</li>
+                        <li>Wear light and comfortable clothes.</li>
+                        <li>Take breaks in a cool or shaded place.</li>
+                        <li>Avoid heavy exercise during very hot weather.</li>
+                        <li>If you feel dizzy, weak, or confused, move to a cool place and seek medical help.</li>
+                    </ol>
+                    <p class="safety-note">⚠️ This system is for general awareness and is not a medical diagnosis.</p>
+                </div>
+
+                <div class="hospital-box" id="hospitalBox">
+                    <h3>🚨 Nearby Hospital Assistance</h3>
+                    <p>High heat risk detected. Nearby hospitals can be searched using your current location.</p>
+                    <p>📍 Your current coordinates:<br><strong id="hospitalCoordinates">--</strong></p>
+                    <button class="hospital-button" onclick="findNearbyHospital()">🏥 Find Nearby Hospitals</button>
+                    <p>Google Maps will show hospitals near your current location.</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>🔥 Stay Safe in the Heat!</p>
+            <p>Weather powered by Open-Meteo</p>
+        </footer>
+    </div>
+
+    <script>
+        /* ---------- Sparkles (generated once) ---------- */
+        (function buildStars() {
+            let box = document.getElementById("stars");
+            for (let i = 0; i < 90; i++) {
+                let s = document.createElement("i");
+                let size = Math.random() < 0.15 ? 3 : 2;
+                s.style.left = (Math.random() * 100) + "%";
+                s.style.top = (Math.random() * 100) + "%";
+                s.style.width = s.style.height = size + "px";
+                s.style.opacity = (0.4 + Math.random() * 0.6).toFixed(2);
+                box.appendChild(s);
+            }
+        })();
+
+        function applyTimeBasedTheme() {
+            /* This background is always dark */
+            document.body.classList.add("dark-mode");
+        }
+
+        let authMode = "login";
+
+        function getStoredUsers() {
+            try {
+                return JSON.parse(localStorage.getItem("heatapp_users") || "{}");
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveStoredUsers(users) {
+            localStorage.setItem("heatapp_users", JSON.stringify(users));
+        }
+
+        function toggleAuthMode() {
+            authMode = authMode === "login" ? "signup" : "login";
+            document.getElementById("loginError").textContent = "";
+            document.getElementById("loginForm").reset();
+            let confirmGroup = document.getElementById("confirmPasswordGroup");
+            let confirmInput = document.getElementById("loginConfirmPassword");
+            let subtitle = document.getElementById("authSubtitle");
+            let submitBtn = document.getElementById("authSubmitBtn");
+            let toggleText = document.getElementById("toggleText");
+            let toggleLink = document.getElementById("toggleLink");
+            let forgotRow = document.getElementById("forgotLinkRow");
+            if (authMode === "signup") {
+                confirmGroup.style.display = "block";
+                confirmInput.required = true;
+                subtitle.textContent = "Create an account to check your heat risk";
+                submitBtn.textContent = "Create Account";
+                toggleText.textContent = "Already have an account?";
+                toggleLink.textContent = "Sign in";
+                forgotRow.style.display = "none";
+            } else {
+                confirmGroup.style.display = "none";
+                confirmInput.required = false;
+                subtitle.textContent = "Sign in to check your heat risk";
+                submitBtn.textContent = "Sign In";
+                toggleText.textContent = "Don't have an account?";
+                toggleLink.textContent = "Create one";
+                forgotRow.style.display = "block";
+            }
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            let errorEl = document.getElementById("loginError");
+            errorEl.textContent = "";
+            let username = document.getElementById("loginUsername").value.trim();
+            let password = document.getElementById("loginPassword").value;
+
+            if (username === "" || password === "") {
+                errorEl.textContent = "Please fill in both fields.";
+                return false;
+            }
+            let users = getStoredUsers();
+            if (authMode === "signup") {
+                let confirmPassword = document.getElementById("loginConfirmPassword").value;
+                if (password.length < 4) {
+                    errorEl.textContent = "Password must be at least 4 characters.";
+                    return false;
+                }
+                if (password !== confirmPassword) {
+                    errorEl.textContent = "Passwords do not match.";
+                    return false;
+                }
+                if (users[username]) {
+                    errorEl.textContent = "That username is already taken.";
+                    return false;
+                }
+                users[username] = password;
+                saveStoredUsers(users);
+                loginSuccess(username);
+                return false;
+            }
+            if (!users[username] || users[username] !== password) {
+                errorEl.textContent = "Incorrect username or password.";
+                return false;
+            }
+            loginSuccess(username);
+            return false;
+        }
+
+        function loginSuccess(username) {
+            localStorage.setItem("heatapp_current_user", username);
+            showApp();
+        }
+
+        function handleLogout() {
+            localStorage.removeItem("heatapp_current_user");
+            document.getElementById("appWrapper").style.display = "none";
+            document.getElementById("loginScreen").style.display = "flex";
+            document.getElementById("loginForm").reset();
+            document.getElementById("loginError").textContent = "";
+        }
+
+        function showApp() {
+            applyTimeBasedTheme();
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("appWrapper").style.display = "block";
+            document.getElementById("logoutBtn").style.display = "inline-block";
+            getLocation();
+        }
+
+        function checkExistingSession() {
+            let currentUser = localStorage.getItem("heatapp_current_user");
+            let users = getStoredUsers();
+            if (currentUser && users[currentUser] !== undefined) {
+                showApp();
+            }
+        }
+
+        let forgotUsernameTarget = "";
+
+        function showForgotPassword() {
+            document.getElementById("loginCardBox").style.display = "none";
+            document.getElementById("forgotPasswordScreen").style.display = "block";
+            resetForgotPasswordScreen();
+        }
+
+        function backToLogin() {
+            document.getElementById("forgotPasswordScreen").style.display = "none";
+            document.getElementById("loginCardBox").style.display = "block";
+            resetForgotPasswordScreen();
+        }
+
+        function resetForgotPasswordScreen() {
+            forgotUsernameTarget = "";
+            document.getElementById("forgotStepOneForm").reset();
+            document.getElementById("forgotStepOneForm").style.display = "block";
+            document.getElementById("forgotStepTwoForm").reset();
+            document.getElementById("forgotStepTwoForm").style.display = "none";
+            document.getElementById("forgotError").textContent = "";
+            document.getElementById("forgotErrorStepTwo").textContent = "";
+            document.getElementById("forgotSuccess").style.display = "none";
+            document.getElementById("forgotSuccess").textContent = "";
+            document.getElementById("forgotSubtitle").textContent = "Enter your username to reset your password";
+        }
+
+        function handleForgotStepOne(event) {
+            event.preventDefault();
+            let errorEl = document.getElementById("forgotError");
+            errorEl.textContent = "";
+            let username = document.getElementById("forgotUsername").value.trim();
+
+            if (username === "") {
+                errorEl.textContent = "Please enter your username.";
+                return false;
+            }
+            let users = getStoredUsers();
+            if (!users[username]) {
+                errorEl.textContent = "No account found with that username.";
+                return false;
+            }
+            forgotUsernameTarget = username;
+            document.getElementById("forgotStepOneForm").style.display = "none";
+            document.getElementById("forgotStepTwoForm").style.display = "block";
+            document.getElementById("forgotSubtitle").textContent =
+                "Set a new password for \"" + username + "\"";
+            return false;
+        }
+
+        function handleForgotStepTwo(event) {
+            event.preventDefault();
+            let errorEl = document.getElementById("forgotErrorStepTwo");
+            errorEl.textContent = "";
+            let newPassword = document.getElementById("newPassword").value;
+            let confirmNewPassword = document.getElementById("confirmNewPassword").value;
+
+            if (newPassword.length < 4) {
+                errorEl.textContent = "Password must be at least 4 characters.";
+                return false;
+            }
+            if (newPassword !== confirmNewPassword) {
+                errorEl.textContent = "Passwords do not match.";
+                return false;
+            }
+            let users = getStoredUsers();
+            if (!users[forgotUsernameTarget]) {
+                errorEl.textContent = "Something went wrong. Please start over.";
+                return false;
+            }
+            users[forgotUsernameTarget] = newPassword;
+            saveStoredUsers(users);
+
+            document.getElementById("forgotStepTwoForm").style.display = "none";
+            let successEl = document.getElementById("forgotSuccess");
+            successEl.style.display = "block";
+            successEl.textContent = "Password updated! You can now sign in with your new password.";
+
+            setTimeout(function () {
+                backToLogin();
+                document.getElementById("loginUsername").value = forgotUsernameTarget;
+            }, 1800);
+            return false;
+        }
+
+        let weatherData = {
+            temperature: 0,
+            humidity: 0,
+            windSpeed: 0,
+            apparentTemperature: 0
+        };
+        let currentLatitude = 0;
+        let currentLongitude = 0;
+
+        function getLocation() {
+            document.getElementById("locationStatus").textContent = "Detecting...";
+            if (!navigator.geolocation) {
+                document.getElementById("errorMessage").textContent = "Geolocation is not supported.";
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    currentLatitude = position.coords.latitude;
+                    currentLongitude = position.coords.longitude;
+                    document.getElementById("latitude").textContent = currentLatitude.toFixed(6);
+                    document.getElementById("longitude").textContent = currentLongitude.toFixed(6);
+                    document.getElementById("locationStatus").textContent = "Location detected ✓";
+                    document.getElementById("errorMessage").textContent = "";
+                    getWeather(currentLatitude, currentLongitude);
+                    getCityName(currentLatitude, currentLongitude);
+                },
+                function () {
+                    document.getElementById("locationStatus").textContent = "Location unavailable";
+                    document.getElementById("errorMessage").textContent = "Please allow location permission.";
+                }
+            );
+        }
+
+        async function getCityName(latitude, longitude) {
+            try {
+                let url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+                let response = await fetch(url);
+                let data = await response.json();
+                let city = data.city || data.locality || data.principalSubdivision || "Current Location";
+                document.getElementById("city").textContent = city;
+            } catch (error) {
+                document.getElementById("city").textContent = "Current Location";
+            }
+        }
+
+        async function getWeather(latitude, longitude) {
+            try {
+                let url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&wind_speed_unit=kmh&timezone=auto`;
+                let response = await fetch(url);
+                let data = await response.json();
+                let current = data.current;
+
+                weatherData.temperature = Number(current.temperature_2m);
+                weatherData.humidity = Number(current.relative_humidity_2m);
+                weatherData.windSpeed = Number(current.wind_speed_10m);
+                weatherData.apparentTemperature = calculateApparentTemperature(
+                    weatherData.temperature,
+                    weatherData.humidity,
+                    weatherData.windSpeed
+                );
+
+                document.getElementById("temperature").textContent = weatherData.temperature.toFixed(1) + " °C";
+                document.getElementById("humidity").textContent = weatherData.humidity.toFixed(0) + " %";
+                document.getElementById("windSpeed").textContent = weatherData.windSpeed.toFixed(1) + " km/h";
+                document.getElementById("apparentTemperature").textContent =
+                    weatherData.apparentTemperature.toFixed(1) + " °C";
+            } catch (error) {
+                document.getElementById("errorMessage").textContent = "Unable to load weather.";
+            }
+        }
+
+        async function getSecondLocation() {
+            let city = document.getElementById("secondLocationInput").value.trim();
+            let errorEl = document.getElementById("secondLocationError");
+
+            if (city === "") {
+                errorEl.textContent = "Please enter a city name.";
+                return;
+            }
+            errorEl.textContent = "";
+            try {
+                let locationURL = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+                let locationResponse = await fetch(locationURL);
+                let locationData = await locationResponse.json();
+                if (!locationData.results || locationData.results.length === 0) {
+                    errorEl.textContent = "Location not found.";
+                    return;
+                }
+                let place = locationData.results[0];
+                let weatherURL = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&wind_speed_unit=kmh&timezone=auto`;
+                let weatherResponse = await fetch(weatherURL);
+                let weather = await weatherResponse.json();
+                let current = weather.current;
+                let temperature = Number(current.temperature_2m);
+                let humidity = Number(current.relative_humidity_2m);
+                let wind = Number(current.wind_speed_10m);
+                let apparent = calculateApparentTemperature(temperature, humidity, wind);
+
+                document.getElementById("secondCity").textContent = place.name;
+                document.getElementById("secondTemperature").textContent = temperature.toFixed(1) + " °C";
+                document.getElementById("secondHumidity").textContent = humidity.toFixed(0) + " %";
+                document.getElementById("secondWindSpeed").textContent = wind.toFixed(1) + " km/h";
+                document.getElementById("secondApparentTemperature").textContent = apparent.toFixed(1) + " °C";
+                document.getElementById("secondWeather").style.display = "block";
+            } catch (err) {
+                errorEl.textContent = "Unable to load this location.";
+            }
+        }
+
+        function calculateApparentTemperature(temperature, humidity, windSpeed) {
+            let windMs = windSpeed / 3.6;
+            let vaporPressure = (humidity / 100) * 6.105 *
+                Math.exp((17.27 * temperature) / (237.7 + temperature));
+            return temperature + (0.33 * vaporPressure) - (0.70 * windMs) - 4;
+        }
+
+        function calculateRisk() {
+            if (weatherData.temperature === 0 && weatherData.humidity === 0) {
+                alert("Please wait for weather data.");
+                return;
+            }
+            let age = document.getElementById("age").value;
+            let activity = document.getElementById("activity").value;
+            let clothing = document.getElementById("clothing").value;
+            let hours = Number(document.getElementById("hours").value);
+
+            let ageFactor = 1;
+            if (age === "Child") ageFactor = 1.15;
+            else if (age === "Elderly") ageFactor = 1.25;
+
+            let activityFactor = 1;
+            if (activity === "Light") activityFactor = 1.10;
+            else if (activity === "Moderate") activityFactor = 1.25;
+            else if (activity === "Heavy") activityFactor = 1.40;
+
+            let clothingFactor = 1;
+            if (clothing === "Normal") clothingFactor = 1.10;
+            else if (clothing === "Heavy") clothingFactor = 1.25;
+
+            let exposureFactor = 1;
+            if (hours > 2) {
+                exposureFactor = 1 + Math.min(0.30, (hours - 2) * 0.02);
+            }
+
+            let riskScore = weatherData.apparentTemperature * ageFactor * activityFactor * clothingFactor * exposureFactor;
+
+            let probability;
+            if (riskScore < 32) probability = 5;
+            else if (riskScore < 38) probability = 20;
+            else if (riskScore < 45) probability = 50;
+            else probability = 80;
+
+            if (hours > 4) probability += 10;
+            if (age === "Elderly") probability += 5;
+            if (activity === "Heavy") probability += 5;
+
+            probability = Math.min(100, probability);
+            displayResult(probability);
+        }
+
+        function displayResult(probability) {
+            let result = document.getElementById("result");
+            let box = document.getElementById("riskBox");
+            let level = document.getElementById("riskLevel");
+            let message = document.getElementById("riskMessage");
+
+            result.style.display = "block";
+            document.getElementById("riskPercentage").textContent = probability + "%";
+            box.className = "risk-box";
+
+            if (probability < 20) {
+                box.classList.add("risk-low");
+                level.textContent = "LOW RISK";
+                message.textContent = "Stay hydrated and take regular breaks.";
+                showSafety("low");
+            } else if (probability < 50) {
+                box.classList.add("risk-moderate");
+                level.textContent = "MODERATE RISK";
+                message.textContent = "Reduce outdoor exposure and drink water.";
+                showSafety("moderate");
+            } else if (probability < 80) {
+                box.classList.add("risk-high");
+                level.textContent = "HIGH RISK";
+                message.textContent = "Avoid strenuous outdoor activity.";
+                showSafety("high");
+            } else {
+                box.classList.add("risk-extreme");
+                level.textContent = "VERY HIGH RISK";
+                message.textContent = "Avoid outdoor activities as much as possible.";
+                showSafety("extreme");
+            }
+            showHospital(probability);
+            result.scrollIntoView({ behavior: "smooth" });
+        }
+
+        function showSafety(level) {
+            let safety = document.getElementById("safetyGuidance");
+            if (level === "low") {
+                safety.innerHTML =
+                    "<li>Drink water regularly.</li>" +
+                    "<li>Wear light and comfortable clothes.</li>" +
+                    "<li>Take breaks if you feel tired.</li>";
+            } else if (level === "moderate") {
+                safety.innerHTML =
+                    "<li>Drink plenty of water.</li>" +
+                    "<li>Take breaks in a shaded area.</li>" +
+                    "<li>Avoid peak afternoon heat.</li>";
+            } else if (level === "high") {
+                safety.innerHTML =
+                    "<li>Limit outdoor physical activity.</li>" +
+                    "<li>Stay in a cool or shaded place.</li>" +
+                    "<li>Drink water frequently.</li>" +
+                    "<li>Avoid heavy exercise.</li>" +
+                    "<li>Check on children and elderly people.</li>";
+            } else {
+                safety.innerHTML =
+                    "<li>Avoid outdoor activity.</li>" +
+                    "<li>Stay in a cool place.</li>" +
+                    "<li>Drink water regularly.</li>" +
+                    "<li>Avoid heavy physical work.</li>" +
+                    "<li>Seek medical help for serious symptoms.</li>";
+            }
+        }
+
+        function showHospital(probability) {
+            let hospitalBox = document.getElementById("hospitalBox");
+            let coordinates = document.getElementById("hospitalCoordinates");
+            if (probability >= 50) {
+                hospitalBox.style.display = "block";
+                coordinates.textContent =
+                    currentLatitude.toFixed(6) + ", " + currentLongitude.toFixed(6);
+            } else {
+                hospitalBox.style.display = "none";
+            }
+        }
+
+        function findNearbyHospital() {
+            if (currentLatitude === 0 || currentLongitude === 0) {
+                alert("Current location is not available. Please detect your location first.");
+                return;
+            }
+            let url = "https://www.google.com/maps/search/hospitals/@" +
+                currentLatitude + "," + currentLongitude + ",14z";
+            window.open(url, "_blank");
+        }
+
+        window.addEventListener("load", function () {
+            applyTimeBasedTheme();
+            checkExistingSession();
+        });
+    </script>
+</body>
+
+</html>
